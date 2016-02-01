@@ -1,0 +1,6 @@
+/build
+*.pyc
+/.tox
+/.cache
+__pycache__/
+/MANIFEST
