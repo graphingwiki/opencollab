@@ -3,12 +3,24 @@
     @copyright: 2009 Lari Huttunen
     @license: MIT <http://www.opensource.org/licenses/mit-license.php>
 """
-import re, sys, getpass, imaplib, email, cStringIO, copy
-import mimetypes, HTMLParser, socket, encodings
+import re
+import sys
+import copy
+import time
+import email
+import socket
+import getpass
+import imaplib
+import cStringIO
+import encodings
+import mimetypes
+import HTMLParser
+
 from opencollab.meta import Metas
 from opencollab.util.file import hashFile, uploadFile
-from opencollab.util.regexp import *
-from email.Iterators import body_line_iterator
+from opencollab.util.regexp import fqdn_re, url_all_re
+
+
 try:
     import email.utils
     from email.utils import getaddresses
@@ -64,7 +76,7 @@ def getMessagesAndUpload(mailbox, collab):
         msg = email.message_from_string(data[0][1])
         msg_obj = cStringIO.StringIO(data[0][1])
         cpage = hashFile(msg_obj)
-        epoch = int(time())
+        epoch = int(time.time())
         metas[cpage]["ATTRIBUTION"].add('<<DateTime(%s)>>' % epoch)
         metas[cpage]["RFC822 Message"].add('[[attachment:%s.txt]]' % cpage)
         metas[cpage]["TYPE"].add("SPAM")
