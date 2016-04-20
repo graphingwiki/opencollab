@@ -16,84 +16,85 @@ from opencollab.wiki import WikiFailure
 from opencollab.util.config import parseOptions
 
 
-def to_rows(pages, multivalue, separator):
-    if multivalue == "duplicate-keys":  # Default sorting (Legacy)
-        counts = {}
-        for page, metas in pages.iteritems():
-            for key, values in metas.iteritems():
-                counts[key] = max(counts.get(key, 0), len(values))
-        keys = sorted(counts.keys())
+def to_rows_default(pages):
+    counts = {}
+    for page, metas in pages.iteritems():
+        for key, values in metas.iteritems():
+            counts[key] = max(counts.get(key, 0), len(values))
+    keys = sorted(counts.keys())
 
-        keyrow = ["Page name"]
+    keyrow = ["Page name"]
+    for key in keys:
+        keyrow.extend([key] * counts[key])
+    yield keyrow
+
+    for page in sorted(pages):
+        metas = pages[page]
+        row = [encode(page)]
         for key in keys:
-            keyrow.extend([key] * counts[key])
-        yield keyrow
+            values = sorted(metas.get(key, []))
+            row.extend(map(encode, values))
+            row.extend([""] * (counts[key] - len(values)))
+        yield row
 
-        for page in sorted(pages):
-            metas = pages[page]
+
+def page_keys(pages):
+    keys = set()
+    for page, metas in pages.iteritems():
+        for key, values in metas.iteritems():
+            keys.add(key)
+    return keys
+
+
+def keyrow(keys):
+    keys = sorted(keys)
+    keyrow = ["Page name"]
+    keyrow.extend(keys)
+    return keyrow
+
+
+def to_rows_aggregate(pages, separator):
+    keys = page_keys(pages)
+    yield keyrow(keys)
+
+    for page in sorted(pages):
+        metas = pages[page]
+        row = [encode(page)]
+        for key in keys:
+            if key in metas:
+                values = metas[key]
+                stringified = encode(separator.join(values))
+                row.extend([stringified])
+            else:
+                row.extend([""])
+        yield row
+
+
+def to_rows_multi_row(pages):
+    keys = page_keys(pages)
+    yield keyrow(keys)
+
+    for page in sorted(pages):
+        metas = pages[page]
+
+        while True:
+            content = False
             row = [encode(page)]
-            for key in keys:
-                values = sorted(metas.get(key, []))
-                row.extend(map(encode, values))
-                row.extend([""] * (counts[key] - len(values)))
-            yield row
 
-    if multivalue == "aggregate-values":
-        keys = set()
-        for page, metas in pages.iteritems():
-            for key, values in metas.iteritems():
-                keys.add(key)
-
-        keys = sorted(keys)
-        keyrow = ["Page name"]
-        keyrow.extend(keys)
-        yield keyrow
-
-        for page in sorted(pages):
-            metas = pages[page]
-            row = [encode(page)]
             for key in keys:
                 if key in metas:
-                    values = metas[key]
-                    stringified = encode(separator.join(values))
-                    row.extend([stringified])
+                    values = list(metas[key])
+                    if len(values) > 0:
+                        row.extend([encode(values.pop())])
+                        content = True
+                    metas[key] = values
                 else:
                     row.extend([""])
-            yield row
 
-    if multivalue == "multi-row":
-        keys = set()
-        for page, metas in pages.iteritems():
-            for key, values in metas.iteritems():
-                keys.add(key)
-
-        keys = sorted(keys)
-        keyrow = ["Page name"]
-        keyrow.extend(keys)
-        yield keyrow
-
-        for page in sorted(pages):
-            metas = pages[page]
-
-            while True:
-                content = False
-                row = [encode(page)]
-
-                for key in keys:
-                    if key in metas:
-                        values = list(metas[key])
-                        if len(values) > 0:
-                            row.extend([encode(values.pop())])
-                            content = True
-                        metas[key] = values
-                    else:
-                        row.extend([""])
-
-                if content:
-                    yield row
-                else:
-                    break
-
+            if content:
+                yield row
+            else:
+                break
 
 
 def encode(x):
@@ -146,14 +147,19 @@ while True:
     try:
         collab = CLIWiki(ssl_verify_cert=x509, ssl_ca_certs=x509_ca_file, **ops['creds'])
 
-        print(repr(ops[sect]))
-
         if "get" in ops[sect]:
             query = ops[sect]["get"]
             if query:
                 results = collab.getMeta(query)
                 writer = csv.writer(sys.stdout, delimiter=";")
-                writer.writerows(to_rows(results, ops[sect]["multivalues"], ops[sect]["multivalue_separator"]))
+
+                if ops[sect]["multivalues"] == "duplicate-keys":
+                    writer.writerows(to_rows_default(results))
+                if ops[sect]["multivalues"] == "aggregate-values":
+                    writer.writerows(to_rows_aggregate(results, ops[sect]["multivalue_separator"]))
+                if ops[sect]["multivalues"] == "multi-row":
+                    writer.writerows(to_rows_multi_row(results))
+
                 sys.stdout.flush()
 
         if "set" in ops[sect]:
