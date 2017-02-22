@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
     name='opencollab',
-    version='1.0.0',
+    version='1.0.1',
     author='Joachim Viide, Pekka Pietikäinen, Mika Seppänen, Lari Huttunen, Juhani Eronen',
     author_email='contact@abusesa.com',
     description='OpenCollab XML-RPC SDK',
