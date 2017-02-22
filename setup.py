@@ -5,7 +5,7 @@ setup(
     name='opencollab',
     version='1.0.0',
     author='Joachim Viide, Pekka Pietikäinen, Mika Seppänen, Lari Huttunen, Juhani Eronen',
-    author_email='clarified@codenomicon.com',
+    author_email='contact@abusesa.com',
     description='OpenCollab XML-RPC SDK',
     packages=['opencollab'],
     package_data={'opencollab': ['*/*.py']},
