@@ -5,14 +5,15 @@
 """
 import os
 import sys
-import cStringIO
-
+from io import StringIO as cStringIO
 
 def md5obj(data=''):
     major, minor = sys.version_info[:2]
     # md5 is deprecated since version 2.5
     if major > 2 or (major == 2 and minor > 5):
         import hashlib
+        if type(data) != bytes:
+            data = data.encode('utf-8')
         return hashlib.md5(data)
 
     import md5
@@ -26,7 +27,7 @@ def hashFile(f):
     try:
         data = f.read()
     except AttributeError:
-        fobj = file(f, 'rb')
+        fobj = file(f,'rb')
         data = fobj.read()
         fobj.close()
     return md5obj(data).hexdigest()
@@ -39,21 +40,21 @@ def uploadFile(collab, page_name, file, file_name, progress=False, data=None):
     if data:
         try:
             file_obj = cStringIO.StringIO(data)
-        except IOError, msg:
+        except IOError as msg:
             raise IOError(msg)
-        except RuntimeError, msg:
+        except RuntimeError as msg:
             raise RuntimeError(msg)
     else:
         try:
             file_obj = open(file, "rb")
-        except IOError, msg:
+        except IOError as msg:
             raise IOError(msg)
         except TypeError:
             try:
                 file_obj = cStringIO.StringIO(file)
-            except IOError, msg:
+            except IOError as msg:
                 raise IOError(msg)
-            except RuntimeError, msg:
+            except RuntimeError as msg:
                 raise RuntimeError(msg)
 
     parts_uploaded = False
@@ -66,7 +67,7 @@ def uploadFile(collab, page_name, file, file_name, progress=False, data=None):
             sys.stdout.flush()
         parts_uploaded = True
     if progress:
-        if parts_uploaded is True:
+        if parts_uploaded == True:
             sys.stdout.write("\n")
         else:
             sys.stdout.write("NOTE: Already uploaded %s\n" % file_name)
@@ -83,7 +84,7 @@ def downloadFile(collab, page, attachment, dpath, verbose=False):
         error = "ERROR: Couldn't open " + fp + " for writing."
         raise IOError(error)
     if verbose:
-        print "NOTE: Downloading", attachment
+        print("NOTE: Downloading {}".format(attachment))
     for data, current, total in collab.getAttachmentChunked(page, attachment):
         percent = 100.0 * current / float(max(total, 1))
         status = current, total, percent

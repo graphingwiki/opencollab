@@ -4,7 +4,7 @@
                         Mika Seppänen, Juhani Eronen
     @license: MIT <http://www.opensource.org/licenses/mit-license.php>
 """
-import UserDict
+from collections import MutableMapping
 
 
 def iterate(func, values):
@@ -25,7 +25,7 @@ class Coder(object):
 
 
 class Func(Coder):
-    def __init__(self, encoder=unicode, decoder=unicode):
+    def __init__(self, encoder=str, decoder=str):
         Coder.__init__(self)
 
         self.encoder = encoder
@@ -100,10 +100,17 @@ class MetaKey(object):
         return self.set == other.set
 
 
-class Meta(UserDict.DictMixin):
+class Meta(MutableMapping):
     def __init__(self):
         self.dict = dict()
         self.schema = dict()
+
+    def __len__(self):
+        return len(self.dict)
+
+    def __iter__(self):
+        for i in self.dict:
+            yield i
 
     def __getitem__(self, key):
         if key not in self.dict:
@@ -150,9 +157,16 @@ class Meta(UserDict.DictMixin):
 
 
 # Just a container for many pages of meta
-class Metas(UserDict.DictMixin):
+class Metas(MutableMapping):
     def __init__(self):
         self.dict = dict()
+
+    def __len__(self):
+        return len(self.dict)
+
+    def __iter__(self):
+        for i in self.dict:
+            yield i
 
     def __getitem__(self, key):
         if key not in self.dict:

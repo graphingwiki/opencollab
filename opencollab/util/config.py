@@ -4,7 +4,7 @@
     @license: MIT <http://www.opensource.org/licenses/mit-license.php>
 """
 import copy
-import ConfigParser
+import configparser as ConfigParser
 
 
 def parseConfig(config):
@@ -30,37 +30,34 @@ def parseOptions(specparser, inisection, x509capath=True, x509=True,
     genparser = copy.deepcopy(specparser)
     if config:
         genparser.add_option("-c", "--config", action="store",
-                             type="string", dest="config", default=None,
-                             metavar="CONFIG", help="CONFIG file path.")
+            type="string", dest="config", default=None,
+            metavar="CONFIG", help="CONFIG file path.")
     if category:
         genparser.add_option("-g", "--category", action="store",
-                             type="string", dest="category", default=None,
-                             metavar="CATEGORY", help="CATEGORY.")
+            type="string", dest="category", default=None,
+            metavar="CATEGORY", help="CATEGORY.")
     if search:
         genparser.add_option("-s", "--search-string", action="store",
-                             type="string", dest="search", default=None,
-                             metavar="SearchString",
-                             help="Metatable() SearchString.")
+            type="string", dest="search", default=None,
+            metavar="SearchString", help="Metatable() SearchString.")
     if template:
         genparser.add_option("-t", "--template", action="store",
-                             type="string", dest="template", default=None,
-                             metavar="TEMPLATE", help="Collab TEMPLATE.")
+            type="string", dest="template", default=None,
+            metavar="TEMPLATE", help="Collab TEMPLATE.")
     if x509:
-        genparser.add_option("-X", "--X509", action="store_false",
-                             default=True, dest="x509",
-                             help="Disable X509 certificate check.")
+        genparser.add_option("-X", "--X509", action="store_false", default=True,
+            dest="x509", help="Disable X509 certificate check.")
     if x509capath:
-        genparser.add_option("-x", "--X509-ca-file", action="store",
-                             type="string", default=None, dest="x509_ca_file",
-                             help="Optional system CA certificate path, e.g. /etc/ssl/certs/ca-certificates.crt.")
+        genparser.add_option("-x", "--X509-ca-file", action="store", type="string", default=None,
+            dest="x509_ca_file", help="Optional system CA certificate path, e.g. /etc/ssl/certs/ca-certificates.crt.")
     genparser.add_option("-u", "--url", action="store",
-                         type="string", dest="url", default=None,
-                         metavar="COLLABURL", help="COLLABURL to connect to.")
+        type="string", dest="url", default=None,
+        metavar="COLLABURL", help="COLLABURL to connect to.")
     genparser.add_option("-U", "--username", action="store",
-                         type="string", dest="username", default=None,
-                         metavar="USERNAME", help="USERNAME to use in collab auth.")
+        type="string", dest="username", default=None,
+        metavar="USERNAME", help="USERNAME to use in collab auth.")
     genparser.add_option("-v", "--verbose", action="store_true",
-                         dest="verbose", help="Enable verbose output.")
+        dest="verbose", help="Enable verbose output.")
     clivalues, args = genparser.parse_args()
     # Parse arguments
     if args:
@@ -68,18 +65,18 @@ def parseOptions(specparser, inisection, x509capath=True, x509=True,
     else:
         globalopts[inisection]["args"] = []
     # Parse CLI options
-    for k, v in vars(clivalues).iteritems():
+    for k, v in vars(clivalues).items():
         cliopts[k] = v
     # Parse config
     if config and clivalues.config:
         try:
             iniopts = parseConfig(clivalues.config)
-        except IOError, msg:
-            print msg
+        except IOError as msg:
+            print(msg)
         else:
             for sect in iniopts:
                 if sect == "creds" or sect == inisection:
-                    for k, v in iniopts[sect].iteritems():
+                    for k, v in iniopts[sect].items():
                         if k in creds and cliopts.get(k) is not None:
                             globalopts[sect][k] = cliopts.get(k)
                         else:
@@ -93,7 +90,7 @@ def parseOptions(specparser, inisection, x509capath=True, x509=True,
             except KeyError:
                 globalopts["creds"][c] = None
     # Iterate CLI options
-    for k, v in cliopts.iteritems():
+    for k, v in cliopts.items():
         if k in creds:
             pass
         else:

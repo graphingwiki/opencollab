@@ -3,23 +3,17 @@
     @copyright: 2008 by Joachim Viide, Pekka Pietikäinen, Mika Seppänen
     @license: MIT <http://www.opensource.org/licenses/mit-license.php>
 """
-import sys
-import errno
+import urllib
+import xmlrpc.client
 import urllib
 import base64
 import socket
-import random
-import getpass
-import urlparse
-import xmlrpclib
+import errno
 from encodings import idna
 
-import httplib
-from httplib import HTTPConnection
-from _sslwrapper import HTTPSConnection
-
-from meta import Meta
-from util.file import md5obj
+import http.client
+from http.client import HTTPConnection
+from .sslwrapper import HTTPSConnection
 
 
 class WikiFailure(Exception):
@@ -55,15 +49,11 @@ class Wiki(object):
         self.ssl_verify_cert = ssl_verify_cert
         self.ssl_ca_certs = ssl_ca_certs
 
-        scheme, host, path, _, _, _ = urlparse.urlparse(url)
+        scheme, host, path, _, _, _ = urllib.parse.urlparse(url)
 
-        if isinstance(host, unicode):
-            host = idna.ToASCII(host)
         self.host = host
 
-        if isinstance(path, unicode):
-            path = path.encode("utf-8")
-        self.path = urllib.quote(path) + "?action=xmlrpc2"
+        self.path = urllib.parse.quote(path) + "?action=xmlrpc2"
 
         self.headers = dict(Connection="Keep-Alive")
         self.creds = None
@@ -86,8 +76,9 @@ class Wiki(object):
         self.creds = token, username, password
 
     def _authenticate(self, username, password):
-        auth = base64.b64encode(username + ":" + password)
-        self.headers["Authorization"] = "Basic " + auth
+        auth = username + ":" + password
+        auth = base64.b64encode(auth.encode('utf-8'))
+        self.headers["Authorization"] = b"Basic " + auth
         self.creds = None
 
         try:
@@ -99,17 +90,17 @@ class Wiki(object):
 
     def _dumps(self, name, args):
         if self.creds is None:
-            return xmlrpclib.dumps(args, name, allow_none=True)
+            return xmlrpc.client.dumps(args, name, allow_none=True)
 
         token, _, _ = self.creds
 
         mc_list = list()
         mc_list.append(dict(methodName="applyAuthToken", params=(token,)))
         mc_list.append(dict(methodName=name, params=args))
-        return xmlrpclib.dumps((mc_list,), "system.multicall", allow_none=True)
+        return xmlrpc.client.dumps((mc_list,), "system.multicall", allow_none=True)
 
     def _loads(self, data):
-        result, _ = xmlrpclib.loads(data)
+        result, _ = xmlrpc.client.loads(data)
         if self.creds is None:
             return result[0]
 
@@ -120,12 +111,12 @@ class Wiki(object):
             string = auth.get("faultString", "<unknown fault>")
             if code == "INVALID":
                 raise WikiAuthenticationFailed(string)
-            raise xmlrpclib.Fault(code, string)
+            raise xmlrpc.client.Fault(code, string)
 
         if isinstance(other, dict):
             code = other.get("faultCode", None)
             string = other.get("faultString", "<unknown fault>")
-            raise xmlrpclib.Fault(code, string)
+            raise xmlrpc.client.Fault(code, string)
 
         return other[0]
 
@@ -145,7 +136,7 @@ class Wiki(object):
         except socket.error as error:
             if error.args[0] != errno.EPIPE:
                 raise
-        except httplib.BadStatusLine:
+        except http.client.BadStatusLine:
             pass
         else:
             return self._read_response(response)
@@ -164,7 +155,7 @@ class Wiki(object):
                 _, username, password = self.creds
                 self._wiki_auth(username, password)
                 return self._request(name, *args)
-        except xmlrpclib.Fault, fault:
+        except xmlrpc.client.Fault as fault:
             raise WikiFault(fault)
 
     def authenticate(self, username, password):
@@ -173,6 +164,13 @@ class Wiki(object):
         except AuthenticationFailed:
             return False
         return True
+
+import sys
+import random
+import getpass
+
+from .meta import Meta
+from .util.file import md5obj
 
 
 class GraphingWiki(Wiki):
@@ -191,7 +189,6 @@ class GraphingWiki(Wiki):
         return self.request("DeletePage", page, comment)
 
     def putCacheFile(self, page, filename, data, overwrite=False):
-        data = xmlrpclib.Binary(data)
         return self.request("PageCache", page, filename,
                             "save", data, overwrite)
 
@@ -206,7 +203,6 @@ class GraphingWiki(Wiki):
         return str(result)
 
     def putAttachment(self, page, filename, data, overwrite=False, log=True):
-        data = xmlrpclib.Binary(data)
         return self.request("AttachFile", page, filename,
                             "save", data, overwrite, log)
 
@@ -264,7 +260,7 @@ class GraphingWiki(Wiki):
 
                 try:
                     self.putCacheFile(page, digest, data, overwrite=True)
-                except WikiFailure, e:
+                except WikiFailure as e:
                     if e.fault.faultString == 'No such method: PageCache.':
                         self.putAttachment(page, digest, data, overwrite=True, log=False)
                     else:
@@ -290,7 +286,7 @@ class GraphingWiki(Wiki):
             current += len(data)
             yield data, current, size
 
-            dataDigest.update(data)
+            dataDigest.update(data.encode('utf-8'))
             if current > size:
                 break
 
@@ -303,6 +299,7 @@ class GraphingWiki(Wiki):
 
     def getMeta(self, value):
         keysOnly = False
+        print(repr(value))
         results = self.request("GetMeta", value, keysOnly)
 
         keys = results.pop(0)
@@ -332,7 +329,7 @@ class GraphingWiki(Wiki):
             keys[key] = list(values)
 
         # If no categories specified, do not set categories to empty
-        if 'category' not in keys:
+        if not 'category' in keys:
             categoryMode = 'add'
 
         categories = keys.pop("category", list())
@@ -393,7 +390,7 @@ class CLIWiki(GraphingWiki):
         while True:
             try:
                 return super(CLIWiki, self).request(name, *args)
-            except AuthenticationFailed, f:
+            except AuthenticationFailed as f:
                 while True:
                     print >> sys.stderr, "Connection Error: " +\
                         ', '.join(f.args)
